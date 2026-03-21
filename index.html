@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Couple Poll</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --rose: #C2507A; --rose-light: #F4D6E3; --rose-dark: #8B2D51;
+  --gold: #C9963A; --gold-light: #F5EDDA; --cream: #FDF8F2;
+  --charcoal: #2C2825; --muted: #8B7E76;
+  --husband: #4A7FB5; --husband-light: #D6E8F7;
+  --wife: #C2507A; --wife-light: #F4D6E3;
+  --green: #2E7D4F; --green-light: #D4EDDA;
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--charcoal); min-height: 100vh; }
+.screen { display: none; min-height: 100vh; padding: 1.5rem 1rem 3rem; }
+.screen.active { display: block; }
+.header { text-align: center; margin-bottom: 1.75rem; }
+.ornament { font-size: 1.1rem; color: var(--gold); letter-spacing: 6px; }
+h1 { font-family: 'Playfair Display', serif; font-size: clamp(1.6rem,5vw,2.3rem); color: var(--rose-dark); line-height: 1.2; margin: 0.4rem 0; }
+h1 em { font-style: italic; color: var(--gold); }
+.subtitle { font-size: 0.78rem; color: var(--muted); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 0.3rem; }
+.divider { width: 60px; height: 1px; background: linear-gradient(to right, transparent, var(--gold), transparent); margin: 0.75rem auto; }
+.card { background: white; border-radius: 18px; padding: 1.4rem; box-shadow: 0 2px 16px rgba(194,80,122,0.08); border: 1px solid var(--rose-light); margin-bottom: 1.25rem; max-width: 580px; margin-left: auto; margin-right: auto; }
+.home-btns { display: flex; flex-direction: column; gap: 12px; max-width: 340px; margin: 0 auto; }
+.big-btn { padding: 1.1rem 1.5rem; border-radius: 14px; border: none; font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 500; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.big-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+.btn-host { background: var(--rose-dark); color: white; }
+.btn-voter { background: var(--husband); color: white; }
+.btn-sm { padding: 8px 18px; border-radius: 8px; border: 1px solid var(--muted); background: transparent; color: var(--muted); font-size: 0.82rem; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; display: inline-block; margin-top: 0.5rem; }
+.btn-sm:hover { border-color: var(--rose); color: var(--rose); }
+.host-ctrl { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.ctrl-btn { padding: 10px 20px; border-radius: 10px; border: none; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.18s; }
+.ctrl-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.ctrl-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-prev { background: #EEE8E1; color: var(--muted); }
+.btn-next { background: var(--rose-dark); color: white; }
+.btn-end  { background: var(--green-light); color: var(--green); border: 1px solid #A8D5B8; }
+.active-badge { font-size: 0.8rem; padding: 5px 12px; border-radius: 20px; background: var(--gold-light); color: var(--gold); font-weight: 500; }
+.q-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.q-item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-radius: 10px; border: 1px solid #EEE8E1; background: var(--cream); font-size: 0.84rem; }
+.q-item.released { background: #F0FAF3; border-color: #A8D5B8; color: var(--green); }
+.q-item.active-q { border-color: var(--rose); background: var(--rose-light); font-weight: 500; color: var(--rose-dark); }
+.q-item.locked { opacity: 0.42; }
+.q-num-badge { width: 22px; height: 22px; border-radius: 50%; background: var(--gold-light); color: var(--gold); font-size: 0.7rem; font-weight: 500; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.q-item.active-q .q-num-badge { background: var(--rose); color: white; }
+.q-item.released .q-num-badge { background: #A8D5B8; color: var(--green); }
+.q-status { margin-left: auto; font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+.q-item.released .q-status { color: var(--green); }
+.legend { display: flex; gap: 1.5rem; margin-bottom: 1rem; font-size: 0.8rem; color: var(--muted); }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 4px; vertical-align: middle; }
+.result-row { margin-bottom: 1rem; }
+.result-q { font-size: 0.8rem; color: var(--muted); margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar-track { display: flex; border-radius: 6px; overflow: hidden; height: 28px; gap: 2px; }
+.bar-h { background: var(--husband-light); display: flex; align-items: center; padding: 0 8px; font-size: 0.78rem; font-weight: 500; color: var(--husband); min-width: 36px; transition: flex 0.5s; }
+.bar-w { background: var(--wife-light); display: flex; align-items: center; justify-content: flex-end; padding: 0 8px; font-size: 0.78rem; font-weight: 500; color: var(--wife); min-width: 36px; transition: flex 0.5s; }
+.qr-section { text-align: center; }
+.qr-section h3 { font-family: 'Playfair Display', serif; font-size: 1.1rem; margin-bottom: 0.4rem; }
+.qr-section p { font-size: 0.82rem; color: var(--muted); margin-bottom: 1rem; }
+#qrcode { display: inline-block; padding: 10px; background: white; border-radius: 12px; border: 1px solid var(--rose-light); }
+.poll-url { margin-top: 0.75rem; font-size: 0.72rem; color: var(--rose); word-break: break-all; font-family: monospace; background: var(--rose-light); padding: 8px 12px; border-radius: 8px; }
+.q-image-wrap { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 1.25rem; }
+.q-image-wrap svg { width: 100%; display: block; }
+.q-number { font-size: 0.72rem; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.5rem; }
+.q-text { font-family: 'Playfair Display', serif; font-size: clamp(1.05rem,3.5vw,1.4rem); color: var(--charcoal); line-height: 1.4; margin-bottom: 1.4rem; }
+.vote-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.vote-btn { padding: 1rem; border-radius: 14px; border: 2px solid transparent; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.18s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.husband-btn { background: var(--husband-light); color: var(--husband); border-color: var(--husband-light); }
+.husband-btn:hover { border-color: var(--husband); transform: translateY(-2px); }
+.wife-btn { background: var(--wife-light); color: var(--wife); border-color: var(--wife-light); }
+.wife-btn:hover { border-color: var(--wife); transform: translateY(-2px); }
+.voted-banner { background: var(--green-light); border-radius: 12px; padding: 14px 16px; color: var(--green); font-weight: 500; font-size: 0.92rem; text-align: center; margin-bottom: 1rem; }
+.waiting-dots { display: flex; justify-content: center; gap: 7px; margin-top: 0.75rem; }
+.waiting-dots span { width: 9px; height: 9px; border-radius: 50%; background: var(--rose-light); animation: blink 1.4s ease-in-out infinite; }
+.waiting-dots span:nth-child(2) { animation-delay: 0.22s; }
+.waiting-dots span:nth-child(3) { animation-delay: 0.44s; }
+@keyframes blink { 0%,80%,100%{background:var(--rose-light)} 40%{background:var(--rose)} }
+.done-card { text-align: center; padding: 2.5rem 1rem; }
+.done-card h2 { font-family: 'Playfair Display', serif; font-style: italic; font-size: 1.8rem; color: var(--rose-dark); margin-bottom: 0.5rem; }
+footer { text-align: center; font-family: 'Playfair Display', serif; font-style: italic; color: var(--muted); font-size: 0.82rem; padding: 1.5rem 0 2rem; }
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<div class="screen active" id="screen-home">
+  <div class="header">
+    <div class="ornament">✦ ✦ ✦</div>
+    <h1>Who Does <em>What?</em></h1>
+    <p class="subtitle">A Couple Behaviour Poll</p>
+    <div class="divider"></div>
+  </div>
+  <div class="home-btns">
+    <button class="big-btn btn-host" onclick="openHost()">🎙 Host / View Results</button>
+    <button class="big-btn btn-voter" onclick="openVoter()">🗳 Cast My Vote</button>
+  </div>
+  <footer>made with love ♥</footer>
+</div>
+
+<!-- HOST -->
+<div class="screen" id="screen-host">
+  <div class="header">
+    <div class="ornament">✦ ✦ ✦</div>
+    <h1>Host <em>Dashboard</em></h1>
+    <div class="divider"></div>
+  </div>
+  <div class="card qr-section">
+    <h3>Share with guests</h3>
+    <p>Guests scan → go directly to voting screen</p>
+    <div id="qrcode"></div>
+    <div class="poll-url" id="poll-url-display"></div>
+  </div>
+  <div class="card">
+    <div style="font-family:'Playfair Display',serif;font-size:1.05rem;margin-bottom:1rem;">Question control</div>
+    <div class="host-ctrl">
+      <button class="ctrl-btn btn-prev" id="btn-prev" onclick="prevQ()">← Prev</button>
+      <button class="ctrl-btn btn-next" id="btn-next" onclick="nextQ()">Next Question →</button>
+      <button class="ctrl-btn btn-end"  id="btn-end"  onclick="endPoll()">✓ End Poll</button>
+      <span class="active-badge" id="active-badge">Q1 active</span>
+    </div>
+    <ul class="q-list" id="q-list"></ul>
+    <button class="btn-sm" style="margin-top:1rem" onclick="resetPoll()">Reset everything</button>
+  </div>
+  <div class="card">
+    <div style="font-family:'Playfair Display',serif;font-size:1.05rem;margin-bottom:0.75rem;">Live results</div>
+    <div class="legend">
+      <span><span class="legend-dot" style="background:var(--husband)"></span>Husband</span>
+      <span><span class="legend-dot" style="background:var(--wife)"></span>Wife</span>
+    </div>
+    <div id="results-list"></div>
+  </div>
+  <div style="text-align:center"><button class="btn-sm" onclick="goTo('screen-home')">← Back</button></div>
+</div>
+
+<!-- VOTER -->
+<div class="screen" id="screen-voter">
+  <div class="header" style="margin-bottom:1.25rem;">
+    <div class="ornament" style="font-size:0.95rem;">✦ ✦ ✦</div>
+    <h1 style="font-size:1.4rem;">Cast Your <em>Vote</em></h1>
+    <div class="divider"></div>
+  </div>
+  <div id="voter-content"></div>
+  <div style="text-align:center;margin-top:1rem;">
+    <button class="btn-sm" onclick="closeVoter()">← Back to home</button>
+  </div>
+</div>
+
+<script>
+/* ─── DATA ─── */
+const QUESTIONS = [
+  { text: "Who decides where to eat for date night?",
+    svg: `<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="180" fill="#FFF3E0"/><rect x="170" y="50" width="220" height="105" rx="10" fill="#FFF8F0" stroke="#F4A261" stroke-width="1.5"/><rect x="170" y="50" width="220" height="32" rx="10" fill="#F4A261" opacity=".65"/><rect x="170" y="70" width="220" height="12" fill="#F4A261" opacity=".65"/><circle cx="175" cy="82" r="12" fill="#4A7FB5"/><rect x="162" y="96" width="26" height="36" rx="7" fill="#4A7FB5" opacity=".75"/><circle cx="385" cy="82" r="12" fill="#C2507A"/><rect x="372" y="96" width="26" height="36" rx="7" fill="#C2507A" opacity=".75"/><rect x="273" y="98" width="8" height="22" rx="2" fill="#FDD835"/><ellipse cx="277" cy="96" rx="4" ry="6" fill="#FF8F00" opacity=".7"/><text x="280" y="30" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="16" fill="#E76F51" opacity=".8">Date Night</text></svg>` },
+  { text: "Who says 'I love you' first after a fight?",
+    svg: `<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="180" fill="#FCE4EC"/><path d="M280 148 C210 100 165 68 188 38 C204 15 244 18 280 50 C316 18 356 15 372 38 C395 68 350 100 280 148Z" fill="#C2507A" opacity=".15"/><path d="M280 128 C228 90 198 68 214 46 C226 30 252 33 280 58 C308 33 334 30 346 46 C362 68 332 90 280 128Z" fill="#C2507A" opacity=".3"/><path d="M280 108 C244 82 228 66 238 52 C246 42 262 44 280 62 C298 44 314 42 322 52 C332 66 316 82 280 108Z" fill="#C2507A" opacity=".55"/><circle cx="188" cy="72" r="20" fill="#4A7FB5"/><rect x="172" y="94" width="32" height="44" rx="9" fill="#4A7FB5" opacity=".75"/><circle cx="372" cy="72" r="20" fill="#C2507A"/><rect x="356" y="94" width="32" height="44" rx="9" fill="#C2507A" opacity=".75"/><text x="280" y="170" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="13" fill="#880E4F" opacity=".75">making up ♥</text></svg>` },
+  { text: "Who remembers anniversaries and special dates?",
+    svg: `<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="180" fill="#F3E5F5"/><rect x="175" y="38" width="210" height="118" rx="12" fill="white" stroke="#9C27B0" stroke-width="1.5" opacity=".75"/><rect x="175" y="38" width="210" height="34" rx="12" fill="#9C27B0" opacity=".65"/><rect x="175" y="60" width="210" height="12" fill="#9C27B0" opacity=".65"/><rect x="216" y="28" width="7" height="18" rx="3" fill="#7B1FA2"/><rect x="337" y="28" width="7" height="18" rx="3" fill="#7B1FA2"/><circle cx="212" cy="100" r="9" fill="#CE93D8" opacity=".5"/><circle cx="238" cy="100" r="9" fill="#CE93D8" opacity=".5"/><circle cx="264" cy="100" r="9" fill="#CE93D8" opacity=".5"/><circle cx="290" cy="100" r="9" fill="#9C27B0" opacity=".9"/><circle cx="316" cy="100" r="9" fill="#CE93D8" opacity=".5"/><circle cx="342" cy="100" r="9" fill="#CE93D8" opacity=".5"/><circle cx="238" cy="128" r="9" fill="#CE93D8" opacity=".5"/><circle cx="264" cy="128" r="9" fill="#CE93D8" opacity=".5"/><circle cx="316" cy="128" r="9" fill="#CE93D8" opacity=".5"/><text x="290" y="104" text-anchor="middle" font-size="10" fill="white" font-weight="bold">♥</text><text x="280" y="170" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="13" fill="#6A1B9A" opacity=".8">never forgets a date</text></svg>` },
+  { text: "Who takes longer to get ready before going out?",
+    svg: `<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="180" fill="#E8F5E9"/><ellipse cx="280" cy="90" rx="52" ry="66" fill="white" stroke="#81C784" stroke-width="2.5"/><ellipse cx="280" cy="85" rx="42" ry="54" fill="#F1F8E9" opacity=".8"/><circle cx="280" cy="55" r="15" fill="#C2507A"/><rect x="266" y="72" width="28" height="36" rx="7" fill="#C2507A" opacity=".7"/><rect x="342" y="72" width="8" height="28" rx="4" fill="#F48FB1"/><rect x="356" y="62" width="8" height="38" rx="4" fill="#CE93D8"/><circle cx="150" cy="78" r="26" fill="white" stroke="#A5D6A7" stroke-width="2"/><line x1="150" y1="78" x2="150" y2="60" stroke="#388E3C" stroke-width="2.5" stroke-linecap="round"/><line x1="150" y1="78" x2="164" y2="80" stroke="#388E3C" stroke-width="2.5" stroke-linecap="round"/><circle cx="150" cy="78" r="3" fill="#388E3C"/><text x="280" y="170" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="13" fill="#2E7D32" opacity=".8">taking their time...</text></svg>` },
+  { text: "Who controls the TV remote?",
+    svg: `<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="180" fill="#E3F2FD"/><rect x="125" y="100" width="310" height="58" rx="14" fill="#90CAF9"/><rect x="125" y="88" width="310" height="28" rx="9" fill="#64B5F6"/><rect x="125" y="88" width="76" height="70" rx="9" fill="#42A5F5"/><rect x="359" y="88" width="76" height="70" rx="9" fill="#42A5F5"/><rect x="196" y="28" width="168" height="104" rx="7" fill="#1565C0" opacity=".85"/><rect x="205" y="36" width="150" height="84" rx="4" fill="#1976D2" opacity=".45"/><rect x="245" y="88" width="70" height="48" rx="10" fill="#37474F" transform="rotate(-18 280 112)"/><circle cx="163" cy="84" r="15" fill="#4A7FB5"/><rect x="150" y="100" width="26" height="38" rx="8" fill="#4A7FB5" opacity=".75"/><circle cx="397" cy="84" r="15" fill="#C2507A"/><rect x="384" y="100" width="26" height="38" rx="8" fill="#C2507A" opacity=".75"/><path d="M178 98 Q218 118 242 118" stroke="#4A7FB5" stroke-width="3.5" fill="none" stroke-linecap="round"/><path d="M382 98 Q342 118 318 118" stroke="#C2507A" stroke-width="3.5" fill="none" stroke-linecap="round"/><text x="280" y="170" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="13" fill="#1565C0" opacity=".8">battle for the remote</text></svg>` },
+  { text: "Who initiates the make-up after an argument?",
+    svg: `<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="180" fill="#FFF8E1"/><ellipse cx="280" cy="105" rx="88" ry="65" fill="#FFCC02" opacity=".1"/><circle cx="240" cy="65" r="22" fill="#4A7FB5"/><rect x="222" y="89" width="36" height="50" rx="10" fill="#4A7FB5" opacity=".75"/><circle cx="320" cy="65" r="22" fill="#C2507A"/><rect x="302" y="89" width="36" height="50" rx="10" fill="#C2507A" opacity=".75"/><path d="M261 104 Q280 94 299 104" stroke="#4A7FB5" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M299 112 Q280 102 261 112" stroke="#C2507A" stroke-width="5" fill="none" stroke-linecap="round"/><text x="200" y="48" font-size="16" fill="#F57F17" opacity=".5">♥</text><text x="348" y="44" font-size="20" fill="#F57F17" opacity=".55">♥</text><text x="280" y="170" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="13" fill="#F57F17" opacity=".85">who hugs first?</text></svg>` },
+  { text: "Who plans the vacations and travel itineraries?",
+    svg: `<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="180" fill="#E0F7FA"/><rect x="0" y="125" width="560" height="55" fill="#B2EBF2" opacity=".45"/><path d="M95 84 L312 65 L334 73 L312 81 L175 97Z" fill="#0288D1" opacity=".85"/><path d="M275 65 L294 50 L304 54 L290 65Z" fill="#0288D1" opacity=".7"/><circle cx="248" cy="72" r="4" fill="white" opacity=".65"/><circle cx="266" cy="70" r="4" fill="white" opacity=".65"/><circle cx="284" cy="68" r="4" fill="white" opacity=".65"/><path d="M95 136 Q195 78 345 98 Q425 106 458 126" stroke="#0288D1" stroke-width="2" stroke-dasharray="7,5" fill="none" opacity=".45"/><circle cx="458" cy="116" r="13" fill="#E53935" opacity=".85"/><circle cx="458" cy="114" r="5" fill="white" opacity=".65"/><rect x="455" y="127" width="6" height="9" rx="2" fill="#E53935" opacity=".85"/><rect x="128" y="132" width="34" height="26" rx="6" fill="#0288D1" opacity=".68"/><rect x="358" y="128" width="56" height="38" rx="5" fill="#FFF9C4" stroke="#F9A825" stroke-width="1.5"/><text x="280" y="170" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="13" fill="#006064" opacity=".85">adventure planner</text></svg>` },
+  { text: "Who wakes up first in the morning?",
+    svg: `<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="180" fill="#F9FBE7"/><circle cx="280" cy="78" r="36" fill="white" stroke="#FFA000" stroke-width="2.5"/><circle cx="280" cy="78" r="28" fill="#FFFDE7"/><line x1="280" y1="78" x2="280" y2="58" stroke="#E65100" stroke-width="3" stroke-linecap="round"/><line x1="280" y1="78" x2="296" y2="86" stroke="#E65100" stroke-width="3" stroke-linecap="round"/><circle cx="280" cy="78" r="3.5" fill="#E65100"/><circle cx="260" cy="45" r="7" fill="#FFA000"/><circle cx="300" cy="45" r="7" fill="#FFA000"/><text x="338" y="52" font-size="16" fill="#7CB342" opacity=".58" font-weight="bold">z</text><text x="358" y="38" font-size="20" fill="#7CB342" opacity=".48" font-weight="bold">Z</text><text x="382" y="26" font-size="24" fill="#7CB342" opacity=".38" font-weight="bold">Z</text><rect x="92" y="128" width="148" height="36" rx="11" fill="#BBDEFB" opacity=".7"/><ellipse cx="130" cy="128" rx="26" ry="12" fill="white" opacity=".8"/><circle cx="130" cy="116" r="15" fill="#4A7FB5" opacity=".8"/><text x="280" y="170" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="13" fill="#E65100" opacity=".85">early bird or snooze champ?</text></svg>` },
+  { text: "Who is more likely to baby-talk to pets?",
+    svg: `<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="180" fill="#FBE9E7"/><ellipse cx="300" cy="128" rx="50" ry="40" fill="#FFCCBC"/><circle cx="300" cy="82" r="34" fill="#FFCCBC"/><polygon points="274,57 262,32 288,52" fill="#FFCCBC"/><polygon points="326,57 338,32 312,52" fill="#FFCCBC"/><polygon points="276,56 268,37 266,50" fill="#F48FB1" opacity=".6"/><polygon points="324,56 332,37 314,50" fill="#F48FB1" opacity=".6"/><circle cx="286" cy="80" r="6" fill="#5D4037"/><circle cx="314" cy="80" r="6" fill="#5D4037"/><ellipse cx="300" cy="91" rx="5" ry="3" fill="#F48FB1"/><path d="M292 95 Q300 102 308 95" stroke="#5D4037" stroke-width="1.5" fill="none" stroke-linecap="round"/><circle cx="172" cy="62" r="32" fill="white" opacity=".85"/><polygon points="188,90 198,104 178,104" fill="white" opacity=".85"/><text x="172" y="70" text-anchor="middle" font-size="26" fill="#C2507A">♥</text><text x="300" y="170" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="13" fill="#BF360C" opacity=".85">who's the baby-talker?</text></svg>` },
+  { text: "Who keeps the house tidy and organised?",
+    svg: `<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="180" fill="#EDE7F6"/><rect x="0" y="140" width="560" height="40" fill="#D1C4E9" opacity=".45"/><text x="355" y="60" font-size="20" fill="#7E57C2" opacity=".48">✨</text><text x="178" y="50" font-size="15" fill="#7E57C2" opacity=".38">✨</text><rect x="292" y="44" width="8" height="100" rx="4" fill="#8D6E63" transform="rotate(10 296 94)"/><ellipse cx="311" cy="143" rx="27" ry="7" fill="#795548" transform="rotate(10 296 143)"/><circle cx="195" cy="72" r="21" fill="#C2507A"/><rect x="178" y="95" width="34" height="46" rx="10" fill="#C2507A" opacity=".75"/><path d="M212 110 Q246 122 285 126" stroke="#C2507A" stroke-width="5" fill="none" stroke-linecap="round"/><circle cx="388" cy="106" r="19" fill="#4A7FB5" opacity=".6"/><rect x="371" y="126" width="34" height="13" rx="7" fill="#4A7FB5" opacity=".5"/><rect x="90" y="76" width="76" height="62" rx="6" fill="#B39DDB" opacity=".38"/><rect x="98" y="80" width="11" height="14" rx="2" fill="#7E57C2" opacity=".5"/><rect x="114" y="80" width="11" height="14" rx="2" fill="#CE93D8" opacity=".5"/><text x="280" y="170" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="13" fill="#4527A0" opacity=".85">who keeps it neat?</text></svg>` }
+];
+
+/* ─── STATE ───
+   activeQ  : which question host has released (0-based)
+   ended    : poll is closed
+   votes    : [{h,w}] per question
+   We store everything in ONE localStorage key so a single read/write is atomic.
+*/
+const LS = 'couplePoll_v5';
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(LS)) || fresh(); } catch(e) { return fresh(); }
+}
+function fresh() {
+  return { activeQ: 0, ended: false, votes: QUESTIONS.map(() => ({ h:0, w:0 })) };
+}
+function save(s) { localStorage.setItem(LS, JSON.stringify(s)); }
+
+/* ─── VOTER LOCAL STATE ─── */
+// track which question index THIS voter has already answered
+// stored per-tab in a simple JS variable (not localStorage — each guest is independent)
+let myVotedQ = -1;   // the question index this guest already voted on in this session
+
+/* ─── NAVIGATION ─── */
+function goTo(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+/* ─── HOST ─── */
+let hostInterval = null;
+
+function openHost() {
+  goTo('screen-host');
+  generateQR();
+  refreshHost();
+  clearInterval(hostInterval);
+  hostInterval = setInterval(refreshHost, 2000);
+}
+
+function refreshHost() {
+  const s = load();
+  buildQList(s);
+  renderResults(s);
+}
+
+function buildQList(s) {
+  const ul = document.getElementById('q-list');
+  ul.innerHTML = '';
+  QUESTIONS.forEach((q, i) => {
+    const isActive  = !s.ended && i === s.activeQ;
+    const isDone    = i < s.activeQ || s.ended;
+    const isLocked  = !s.ended && i > s.activeQ;
+    const li = document.createElement('li');
+    li.className = 'q-item' + (isActive ? ' active-q' : isDone ? ' released' : isLocked ? ' locked' : '');
+    const status = isActive ? '● Live now' : isDone ? '✓ Done' : '🔒 Soon';
+    const total = s.votes[i].h + s.votes[i].w;
+    li.innerHTML = `<span class="q-num-badge">${i+1}</span><span style="flex:1">${q.text}</span><span class="q-status">${status} · ${total}v</span>`;
+    ul.appendChild(li);
+  });
+  const ended = s.ended;
+  document.getElementById('btn-prev').disabled = s.activeQ === 0 || ended;
+  document.getElementById('btn-next').disabled = s.activeQ >= QUESTIONS.length - 1 || ended;
+  document.getElementById('btn-end').disabled  = ended;
+  document.getElementById('active-badge').textContent = ended ? 'Poll ended' : `Q${s.activeQ + 1} of ${QUESTIONS.length} active`;
+}
+
+function renderResults(s) {
+  const el = document.getElementById('results-list');
+  el.innerHTML = '';
+  QUESTIONS.forEach((q, i) => {
+    const v = s.votes[i], total = v.h + v.w;
+    const hP = total ? Math.round(v.h/total*100) : 50;
+    const wP = 100 - hP;
+    el.innerHTML += `<div class="result-row">
+      <div class="result-q">${i+1}. ${q.text}</div>
+      <div class="bar-track">
+        <div class="bar-h" style="flex:${hP}">♂ ${total ? hP+'%':'–'}</div>
+        <div class="bar-w" style="flex:${wP}">${total ? wP+'%':'–'} ♀</div>
+      </div></div>`;
+  });
+}
+
+function nextQ() {
+  const s = load();
+  if (s.activeQ < QUESTIONS.length - 1 && !s.ended) { s.activeQ++; save(s); refreshHost(); }
+}
+function prevQ() {
+  const s = load();
+  if (s.activeQ > 0 && !s.ended) { s.activeQ--; save(s); refreshHost(); }
+}
+function endPoll() {
+  if (!confirm('End the poll for everyone?')) return;
+  const s = load(); s.ended = true; save(s); refreshHost();
+}
+function resetPoll() {
+  if (!confirm('Reset all votes and start over?')) return;
+  save(fresh()); myVotedQ = -1; refreshHost();
+}
+
+function generateQR() {
+  const url = window.location.href.split('?')[0] + '?vote=1';
+  document.getElementById('poll-url-display').textContent = url;
+  const el = document.getElementById('qrcode');
+  el.innerHTML = '';
+  new QRCode(el, { text: url, width: 180, height: 180, colorDark:'#2C2825', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.M });
+}
+
+/* ─── VOTER ─── */
+let voterInterval = null;
+let lastSeenQ = -1;   // last activeQ we rendered for voter
+
+function openVoter() {
+  goTo('screen-voter');
+  lastSeenQ = -1;
+  renderVoter();
+  clearInterval(voterInterval);
+  voterInterval = setInterval(renderVoter, 2000);
+}
+
+function closeVoter() {
+  clearInterval(voterInterval);
+  voterInterval = null;
+  goTo('screen-home');
+}
+
+function renderVoter() {
+  const s = load();
+
+  // Poll ended
+  if (s.ended) {
+    clearInterval(voterInterval);
+    document.getElementById('voter-content').innerHTML = `
+      <div class="card done-card">
+        <div style="font-size:2.8rem;margin-bottom:1rem">🎉</div>
+        <h2>That's a wrap!</h2>
+        <p style="color:var(--muted);margin-top:0.5rem;font-size:0.9rem">Thanks for playing! The host will reveal the results.</p>
+      </div>`;
+    return;
+  }
+
+  const q = s.activeQ;
+
+  // Host moved to a new question — reset voter state for that question
+  if (q !== lastSeenQ) {
+    lastSeenQ = q;
+    // If voter hasn't voted on THIS question yet, show voting UI
+    // (myVotedQ tracks which question index they voted on)
+    if (myVotedQ !== q) {
+      showVoteUI(s, q);
+    } else {
+      showWaiting(s, q);
+    }
+    return;
+  }
+
+  // Same question as before — only re-render if needed (avoid flicker)
+  if (myVotedQ === q) {
+    showWaiting(s, q);
+  }
+  // else: voting UI already showing, don't re-render (would reset button state)
+}
+
+function showVoteUI(s, qIdx) {
+  const q = QUESTIONS[qIdx];
+  document.getElementById('voter-content').innerHTML = `
+    <div class="card">
+      <div class="q-image-wrap">${q.svg}</div>
+      <div class="q-number">Question ${qIdx+1} of ${QUESTIONS.length}</div>
+      <div class="q-text">${q.text}</div>
+      <div class="vote-row">
+        <button class="vote-btn husband-btn" onclick="castVote('h',${qIdx})">♂ Husband</button>
+        <button class="vote-btn wife-btn"    onclick="castVote('w',${qIdx})">♀ Wife</button>
+      </div>
+    </div>`;
+}
+
+function showWaiting(s, qIdx) {
+  const q = QUESTIONS[qIdx];
+  document.getElementById('voter-content').innerHTML = `
+    <div class="card">
+      <div class="q-image-wrap">${q.svg}</div>
+      <div class="q-number">Question ${qIdx+1} of ${QUESTIONS.length}</div>
+      <div class="q-text">${q.text}</div>
+      <div class="voted-banner">✓ Vote recorded!</div>
+      <p style="text-align:center;font-size:0.84rem;color:var(--muted);margin-bottom:0.5rem">Waiting for the next question...</p>
+      <div class="waiting-dots"><span></span><span></span><span></span></div>
+    </div>`;
+}
+
+function castVote(choice, qIdx) {
+  const s = load();
+  // Guard: only vote if still on this question and poll not ended
+  if (s.activeQ !== qIdx || s.ended || myVotedQ === qIdx) return;
+  s.votes[qIdx][choice]++;
+  save(s);
+  myVotedQ = qIdx;
+  showWaiting(s, qIdx);
+}
+
+/* ─── INIT ─── */
+if (window.location.search.includes('vote=1')) {
+  openVoter();
+}
+</script>
+</body>
+</html>
