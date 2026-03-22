@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Couple Poll</title>
+<title>Couple Poll — Shreya & Yashvardhan</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
@@ -81,6 +81,10 @@ h1 em { font-style: italic; color: var(--gold); }
 @keyframes blink { 0%,80%,100%{background:var(--rose-light)} 40%{background:var(--rose)} }
 .done-card { text-align: center; padding: 2.5rem 1rem; }
 .done-card h2 { font-family: 'Playfair Display', serif; font-style: italic; font-size: 1.8rem; color: var(--rose-dark); margin-bottom: 0.5rem; }
+.status-bar { max-width: 580px; margin: 0 auto 1rem; padding: 8px 14px; border-radius: 10px; font-size: 0.8rem; text-align: center; }
+.status-connecting { background: var(--gold-light); color: var(--gold); }
+.status-live { background: var(--green-light); color: var(--green); }
+.status-error { background: #FDECEA; color: #B71C1C; }
 footer { text-align: center; font-family: 'Playfair Display', serif; font-style: italic; color: var(--muted); font-size: 0.82rem; padding: 1.5rem 0 2rem; }
 </style>
 </head>
@@ -91,7 +95,7 @@ footer { text-align: center; font-family: 'Playfair Display', serif; font-style:
   <div class="header">
     <div class="ornament">✦ ✦ ✦</div>
     <h1>Who Does <em>What?</em></h1>
-    <p class="subtitle">A Couple Behaviour Poll</p>
+    <p class="subtitle">Shreya &amp; Yashvardhan</p>
     <div class="divider"></div>
   </div>
   <div class="home-btns">
@@ -108,6 +112,7 @@ footer { text-align: center; font-family: 'Playfair Display', serif; font-style:
     <h1>Host <em>Dashboard</em></h1>
     <div class="divider"></div>
   </div>
+  <div id="host-status" class="status-bar status-connecting">Connecting to Supabase...</div>
   <div class="card qr-section">
     <h3>Share with guests</h3>
     <p>Guests scan → go directly to voting screen</p>
@@ -133,7 +138,7 @@ footer { text-align: center; font-family: 'Playfair Display', serif; font-style:
     </div>
     <div id="results-list"></div>
   </div>
-  <div style="text-align:center"><button class="btn-sm" onclick="goTo('screen-home')">← Back</button></div>
+  <div style="text-align:center"><button class="btn-sm" onclick="closeHost()">← Back</button></div>
 </div>
 
 <!-- VOTER -->
@@ -143,14 +148,23 @@ footer { text-align: center; font-family: 'Playfair Display', serif; font-style:
     <h1 style="font-size:1.4rem;">Cast Your <em>Vote</em></h1>
     <div class="divider"></div>
   </div>
+  <div id="voter-status" class="status-bar status-connecting">Connecting...</div>
   <div id="voter-content"></div>
   <div style="text-align:center;margin-top:1rem;">
     <button class="btn-sm" onclick="closeVoter()">← Back to home</button>
   </div>
 </div>
 
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
 <script>
-/* ─── DATA ─── */
+/* ─── SUPABASE INIT ─── */
+const SUPABASE_URL  = 'https://balmcvagpxsbodneybig.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhbG1jdmFncHhzYm9kbmV5YmlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxOTE5OTIsImV4cCI6MjA4OTc2Nzk5Mn0.GFJU2LTKK8Je_FqZUo7zTzlZT9l-Yc7U1_I_M6arls8';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+/* ─── QUESTIONS ─── */
 const QUESTIONS = [
   { text: "Who decides where to eat for date night?",
     svg: `<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="180" fill="#FFF3E0"/><rect x="170" y="50" width="220" height="105" rx="10" fill="#FFF8F0" stroke="#F4A261" stroke-width="1.5"/><rect x="170" y="50" width="220" height="32" rx="10" fill="#F4A261" opacity=".65"/><rect x="170" y="70" width="220" height="12" fill="#F4A261" opacity=".65"/><circle cx="175" cy="82" r="12" fill="#4A7FB5"/><rect x="162" y="96" width="26" height="36" rx="7" fill="#4A7FB5" opacity=".75"/><circle cx="385" cy="82" r="12" fill="#C2507A"/><rect x="372" y="96" width="26" height="36" rx="7" fill="#C2507A" opacity=".75"/><rect x="273" y="98" width="8" height="22" rx="2" fill="#FDD835"/><ellipse cx="277" cy="96" rx="4" ry="6" fill="#FF8F00" opacity=".7"/><text x="280" y="30" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="16" fill="#E76F51" opacity=".8">Date Night</text></svg>` },
@@ -167,33 +181,21 @@ const QUESTIONS = [
   { text: "Who plans the vacations and travel itineraries?",
     svg: `<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="180" fill="#E0F7FA"/><rect x="0" y="125" width="560" height="55" fill="#B2EBF2" opacity=".45"/><path d="M95 84 L312 65 L334 73 L312 81 L175 97Z" fill="#0288D1" opacity=".85"/><path d="M275 65 L294 50 L304 54 L290 65Z" fill="#0288D1" opacity=".7"/><circle cx="248" cy="72" r="4" fill="white" opacity=".65"/><circle cx="266" cy="70" r="4" fill="white" opacity=".65"/><circle cx="284" cy="68" r="4" fill="white" opacity=".65"/><path d="M95 136 Q195 78 345 98 Q425 106 458 126" stroke="#0288D1" stroke-width="2" stroke-dasharray="7,5" fill="none" opacity=".45"/><circle cx="458" cy="116" r="13" fill="#E53935" opacity=".85"/><circle cx="458" cy="114" r="5" fill="white" opacity=".65"/><rect x="455" y="127" width="6" height="9" rx="2" fill="#E53935" opacity=".85"/><rect x="128" y="132" width="34" height="26" rx="6" fill="#0288D1" opacity=".68"/><rect x="358" y="128" width="56" height="38" rx="5" fill="#FFF9C4" stroke="#F9A825" stroke-width="1.5"/><text x="280" y="170" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="13" fill="#006064" opacity=".85">adventure planner</text></svg>` },
   { text: "Who wakes up first in the morning?",
-    svg: `<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="180" fill="#F9FBE7"/><circle cx="280" cy="78" r="36" fill="white" stroke="#FFA000" stroke-width="2.5"/><circle cx="280" cy="78" r="28" fill="#FFFDE7"/><line x1="280" y1="78" x2="280" y2="58" stroke="#E65100" stroke-width="3" stroke-linecap="round"/><line x1="280" y1="78" x2="296" y2="86" stroke="#E65100" stroke-width="3" stroke-linecap="round"/><circle cx="280" cy="78" r="3.5" fill="#E65100"/><circle cx="260" cy="45" r="7" fill="#FFA000"/><circle cx="300" cy="45" r="7" fill="#FFA000"/><text x="338" y="52" font-size="16" fill="#7CB342" opacity=".58" font-weight="bold">z</text><text x="358" y="38" font-size="20" fill="#7CB342" opacity=".48" font-weight="bold">Z</text><text x="382" y="26" font-size="24" fill="#7CB342" opacity=".38" font-weight="bold">Z</text><rect x="92" y="128" width="148" height="36" rx="11" fill="#BBDEFB" opacity=".7"/><ellipse cx="130" cy="128" rx="26" ry="12" fill="white" opacity=".8"/><circle cx="130" cy="116" r="15" fill="#4A7FB5" opacity=".8"/><text x="280" y="170" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="13" fill="#E65100" opacity=".85">early bird or snooze champ?</text></svg>` },
+    svg: `<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="180" fill="#F9FBE7"/><circle cx="280" cy="78" r="36" fill="white" stroke="#FFA000" stroke-width="2.5"/><circle cx="280" cy="78" r="28" fill="#FFFDE7"/><line x1="280" y1="78" x2="280" y2="58" stroke="#E65100" stroke-width="3" stroke-linecap="round"/><line x1="280" y1="78" x2="296" y2="86" stroke="#E65100" stroke-width="3" stroke-linecap="round"/><circle cx="280" cy="78" r="3.5" fill="#E65100"/><circle cx="260" cy="45" r="7" fill="#FFA000"/><circle cx="300" cy="45" r="7" fill="#FFA000"/><text x="338" y="52" font-size="16" fill="#7CB342" opacity=".58" font-weight="bold">z</text><text x="358" y="38" font-size="20" fill="#7CB342" opacity=".48" font-weight="bold">Z</text><text x="382" y="26" font-size="24" fill="#7CB342" opacity=".38" font-weight="bold">Z</text><rect x="92" y="128" width="148" height="36" rx="11" fill="#BBDEFB" opacity=".7"/><circle cx="130" cy="116" r="15" fill="#4A7FB5" opacity=".8"/><text x="280" y="170" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="13" fill="#E65100" opacity=".85">early bird or snooze champ?</text></svg>` },
   { text: "Who is more likely to baby-talk to pets?",
     svg: `<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="180" fill="#FBE9E7"/><ellipse cx="300" cy="128" rx="50" ry="40" fill="#FFCCBC"/><circle cx="300" cy="82" r="34" fill="#FFCCBC"/><polygon points="274,57 262,32 288,52" fill="#FFCCBC"/><polygon points="326,57 338,32 312,52" fill="#FFCCBC"/><polygon points="276,56 268,37 266,50" fill="#F48FB1" opacity=".6"/><polygon points="324,56 332,37 314,50" fill="#F48FB1" opacity=".6"/><circle cx="286" cy="80" r="6" fill="#5D4037"/><circle cx="314" cy="80" r="6" fill="#5D4037"/><ellipse cx="300" cy="91" rx="5" ry="3" fill="#F48FB1"/><path d="M292 95 Q300 102 308 95" stroke="#5D4037" stroke-width="1.5" fill="none" stroke-linecap="round"/><circle cx="172" cy="62" r="32" fill="white" opacity=".85"/><polygon points="188,90 198,104 178,104" fill="white" opacity=".85"/><text x="172" y="70" text-anchor="middle" font-size="26" fill="#C2507A">♥</text><text x="300" y="170" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="13" fill="#BF360C" opacity=".85">who's the baby-talker?</text></svg>` },
   { text: "Who keeps the house tidy and organised?",
     svg: `<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="180" fill="#EDE7F6"/><rect x="0" y="140" width="560" height="40" fill="#D1C4E9" opacity=".45"/><text x="355" y="60" font-size="20" fill="#7E57C2" opacity=".48">✨</text><text x="178" y="50" font-size="15" fill="#7E57C2" opacity=".38">✨</text><rect x="292" y="44" width="8" height="100" rx="4" fill="#8D6E63" transform="rotate(10 296 94)"/><ellipse cx="311" cy="143" rx="27" ry="7" fill="#795548" transform="rotate(10 296 143)"/><circle cx="195" cy="72" r="21" fill="#C2507A"/><rect x="178" y="95" width="34" height="46" rx="10" fill="#C2507A" opacity=".75"/><path d="M212 110 Q246 122 285 126" stroke="#C2507A" stroke-width="5" fill="none" stroke-linecap="round"/><circle cx="388" cy="106" r="19" fill="#4A7FB5" opacity=".6"/><rect x="371" y="126" width="34" height="13" rx="7" fill="#4A7FB5" opacity=".5"/><rect x="90" y="76" width="76" height="62" rx="6" fill="#B39DDB" opacity=".38"/><rect x="98" y="80" width="11" height="14" rx="2" fill="#7E57C2" opacity=".5"/><rect x="114" y="80" width="11" height="14" rx="2" fill="#CE93D8" opacity=".5"/><text x="280" y="170" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="13" fill="#4527A0" opacity=".85">who keeps it neat?</text></svg>` }
 ];
 
-/* ─── STATE ───
-   activeQ  : which question host has released (0-based)
-   ended    : poll is closed
-   votes    : [{h,w}] per question
-   We store everything in ONE localStorage key so a single read/write is atomic.
-*/
-const LS = 'couplePoll_v5';
+/* ─── STATE ─── */
+let pollState = null;
+let myVotedQ  = -1;
+let realtimeSub = null;
 
-function load() {
-  try { return JSON.parse(localStorage.getItem(LS)) || fresh(); } catch(e) { return fresh(); }
+function freshState() {
+  return { active_q: 0, ended: false, votes: QUESTIONS.map(() => ({ h: 0, w: 0 })) };
 }
-function fresh() {
-  return { activeQ: 0, ended: false, votes: QUESTIONS.map(() => ({ h:0, w:0 })) };
-}
-function save(s) { localStorage.setItem(LS, JSON.stringify(s)); }
-
-/* ─── VOTER LOCAL STATE ─── */
-// track which question index THIS voter has already answered
-// stored per-tab in a simple JS variable (not localStorage — each guest is independent)
-let myVotedQ = -1;   // the question index this guest already voted on in this session
 
 /* ─── NAVIGATION ─── */
 function goTo(id) {
@@ -202,181 +204,203 @@ function goTo(id) {
   window.scrollTo(0, 0);
 }
 
-/* ─── HOST ─── */
-let hostInterval = null;
+function setStatus(elId, type, msg) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.className = 'status-bar status-' + type;
+  el.textContent = msg;
+}
 
+/* ─── SUPABASE HELPERS ─── */
+async function loadState() {
+  const { data, error } = await sb.from('poll_state').select('*').eq('id', 'main').single();
+  if (error) throw error;
+  if (!data.votes || !Array.isArray(data.votes) || data.votes.length !== QUESTIONS.length) {
+    data.votes = QUESTIONS.map(() => ({ h: 0, w: 0 }));
+  }
+  return data;
+}
+
+async function updateState(changes) {
+  const { error } = await sb.from('poll_state').update(changes).eq('id', 'main');
+  if (error) throw error;
+}
+
+function subscribeRealtime(onUpdate) {
+  if (realtimeSub) { sb.removeChannel(realtimeSub); realtimeSub = null; }
+  realtimeSub = sb.channel('poll-changes')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'poll_state' }, payload => {
+      const d = payload.new;
+      if (!d.votes || !Array.isArray(d.votes) || d.votes.length !== QUESTIONS.length) {
+        d.votes = QUESTIONS.map(() => ({ h: 0, w: 0 }));
+      }
+      onUpdate(d);
+    })
+    .subscribe();
+}
+
+function unsubRealtime() {
+  if (realtimeSub) { sb.removeChannel(realtimeSub); realtimeSub = null; }
+}
+
+/* ─── HOST ─── */
 function openHost() {
   goTo('screen-host');
   generateQR();
-  refreshHost();
-  clearInterval(hostInterval);
-  hostInterval = setInterval(refreshHost, 2000);
+  setStatus('host-status', 'connecting', 'Connecting to Supabase...');
+  loadState().then(s => {
+    pollState = s;
+    setStatus('host-status', 'live', '🟢 Live — changes sync to all guests instantly');
+    buildQList(s);
+    renderResults(s);
+    subscribeRealtime(s => {
+      pollState = s;
+      buildQList(s);
+      renderResults(s);
+    });
+  }).catch(e => setStatus('host-status', 'error', '⚠ ' + e.message));
 }
 
-function refreshHost() {
-  const s = load();
-  buildQList(s);
-  renderResults(s);
+function closeHost() {
+  unsubRealtime();
+  goTo('screen-home');
 }
 
 function buildQList(s) {
   const ul = document.getElementById('q-list');
   ul.innerHTML = '';
   QUESTIONS.forEach((q, i) => {
-    const isActive  = !s.ended && i === s.activeQ;
-    const isDone    = i < s.activeQ || s.ended;
-    const isLocked  = !s.ended && i > s.activeQ;
+    const isActive = !s.ended && i === s.active_q;
+    const isDone   = i < s.active_q || s.ended;
+    const isLocked = !s.ended && i > s.active_q;
     const li = document.createElement('li');
     li.className = 'q-item' + (isActive ? ' active-q' : isDone ? ' released' : isLocked ? ' locked' : '');
-    const status = isActive ? '● Live now' : isDone ? '✓ Done' : '🔒 Soon';
-    const total = s.votes[i].h + s.votes[i].w;
-    li.innerHTML = `<span class="q-num-badge">${i+1}</span><span style="flex:1">${q.text}</span><span class="q-status">${status} · ${total}v</span>`;
+    const status = isActive ? '● Live' : isDone ? '✓ Done' : '🔒';
+    const v = s.votes[i] || { h: 0, w: 0 };
+    li.innerHTML = `<span class="q-num-badge">${i+1}</span><span style="flex:1">${q.text}</span><span class="q-status">${status} · ${v.h+v.w}v</span>`;
     ul.appendChild(li);
   });
-  const ended = s.ended;
-  document.getElementById('btn-prev').disabled = s.activeQ === 0 || ended;
-  document.getElementById('btn-next').disabled = s.activeQ >= QUESTIONS.length - 1 || ended;
-  document.getElementById('btn-end').disabled  = ended;
-  document.getElementById('active-badge').textContent = ended ? 'Poll ended' : `Q${s.activeQ + 1} of ${QUESTIONS.length} active`;
+  document.getElementById('btn-prev').disabled = s.active_q === 0 || s.ended;
+  document.getElementById('btn-next').disabled = s.active_q >= QUESTIONS.length - 1 || s.ended;
+  document.getElementById('btn-end').disabled  = s.ended;
+  document.getElementById('active-badge').textContent = s.ended ? 'Poll ended' : `Q${s.active_q + 1} of ${QUESTIONS.length}`;
 }
 
 function renderResults(s) {
   const el = document.getElementById('results-list');
   el.innerHTML = '';
   QUESTIONS.forEach((q, i) => {
-    const v = s.votes[i], total = v.h + v.w;
-    const hP = total ? Math.round(v.h/total*100) : 50;
+    const v = s.votes[i] || { h: 0, w: 0 };
+    const total = v.h + v.w;
+    const hP = total ? Math.round(v.h / total * 100) : 50;
     const wP = 100 - hP;
     el.innerHTML += `<div class="result-row">
       <div class="result-q">${i+1}. ${q.text}</div>
       <div class="bar-track">
-        <div class="bar-h" style="flex:${hP}">♂ ${total ? hP+'%':'–'}</div>
-        <div class="bar-w" style="flex:${wP}">${total ? wP+'%':'–'} ♀</div>
+        <div class="bar-h" style="flex:${hP}">♂ ${total ? hP+'%' : '–'}</div>
+        <div class="bar-w" style="flex:${wP}">${total ? wP+'%' : '–'} ♀</div>
       </div></div>`;
   });
 }
 
 function nextQ() {
-  const s = load();
-  if (s.activeQ < QUESTIONS.length - 1 && !s.ended) { s.activeQ++; save(s); refreshHost(); }
+  if (!pollState || pollState.active_q >= QUESTIONS.length - 1 || pollState.ended) return;
+  updateState({ active_q: pollState.active_q + 1 });
 }
 function prevQ() {
-  const s = load();
-  if (s.activeQ > 0 && !s.ended) { s.activeQ--; save(s); refreshHost(); }
+  if (!pollState || pollState.active_q <= 0 || pollState.ended) return;
+  updateState({ active_q: pollState.active_q - 1 });
 }
 function endPoll() {
-  if (!confirm('End the poll for everyone?')) return;
-  const s = load(); s.ended = true; save(s); refreshHost();
+  if (!confirm('End the poll for all guests?')) return;
+  updateState({ ended: true });
 }
 function resetPoll() {
   if (!confirm('Reset all votes and start over?')) return;
-  save(fresh()); myVotedQ = -1; refreshHost();
+  myVotedQ = -1;
+  const f = freshState();
+  updateState({ active_q: f.active_q, ended: f.ended, votes: f.votes });
 }
 
+/* ─── QR ─── */
 function generateQR() {
   const url = window.location.href.split('?')[0] + '?vote=1';
   document.getElementById('poll-url-display').textContent = url;
   const el = document.getElementById('qrcode');
   el.innerHTML = '';
-  new QRCode(el, { text: url, width: 180, height: 180, colorDark:'#2C2825', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  new QRCode(el, { text: url, width: 180, height: 180, colorDark: '#2C2825', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
 }
 
 /* ─── VOTER ─── */
-let voterInterval = null;
-let lastSeenQ = -1;   // last activeQ we rendered for voter
-
 function openVoter() {
   goTo('screen-voter');
-  lastSeenQ = -1;
-  renderVoter();
-  clearInterval(voterInterval);
-  voterInterval = setInterval(renderVoter, 2000);
+  myVotedQ = -1;
+  setStatus('voter-status', 'connecting', 'Connecting...');
+  document.getElementById('voter-content').innerHTML = '';
+
+  loadState().then(s => {
+    pollState = s;
+    setStatus('voter-status', 'live', '🟢 Live');
+    renderVoter(s);
+    subscribeRealtime(s => {
+      pollState = s;
+      renderVoter(s);
+    });
+  }).catch(e => setStatus('voter-status', 'error', '⚠ Connection error'));
 }
 
 function closeVoter() {
-  clearInterval(voterInterval);
-  voterInterval = null;
+  unsubRealtime();
   goTo('screen-home');
 }
 
-function renderVoter() {
-  const s = load();
-
-  // Poll ended
+function renderVoter(s) {
+  const el = document.getElementById('voter-content');
   if (s.ended) {
-    clearInterval(voterInterval);
-    document.getElementById('voter-content').innerHTML = `
-      <div class="card done-card">
-        <div style="font-size:2.8rem;margin-bottom:1rem">🎉</div>
-        <h2>That's a wrap!</h2>
-        <p style="color:var(--muted);margin-top:0.5rem;font-size:0.9rem">Thanks for playing! The host will reveal the results.</p>
-      </div>`;
-    return;
-  }
-
-  const q = s.activeQ;
-
-  // Host moved to a new question — reset voter state for that question
-  if (q !== lastSeenQ) {
-    lastSeenQ = q;
-    // If voter hasn't voted on THIS question yet, show voting UI
-    // (myVotedQ tracks which question index they voted on)
-    if (myVotedQ !== q) {
-      showVoteUI(s, q);
-    } else {
-      showWaiting(s, q);
-    }
-    return;
-  }
-
-  // Same question as before — only re-render if needed (avoid flicker)
-  if (myVotedQ === q) {
-    showWaiting(s, q);
-  }
-  // else: voting UI already showing, don't re-render (would reset button state)
-}
-
-function showVoteUI(s, qIdx) {
-  const q = QUESTIONS[qIdx];
-  document.getElementById('voter-content').innerHTML = `
-    <div class="card">
-      <div class="q-image-wrap">${q.svg}</div>
-      <div class="q-number">Question ${qIdx+1} of ${QUESTIONS.length}</div>
-      <div class="q-text">${q.text}</div>
-      <div class="vote-row">
-        <button class="vote-btn husband-btn" onclick="castVote('h',${qIdx})">♂ Husband</button>
-        <button class="vote-btn wife-btn"    onclick="castVote('w',${qIdx})">♀ Wife</button>
-      </div>
+    el.innerHTML = `<div class="card done-card">
+      <div style="font-size:2.8rem;margin-bottom:1rem">🎉</div>
+      <h2>That's a wrap!</h2>
+      <p style="color:var(--muted);margin-top:0.5rem;font-size:0.9rem">Thanks for playing! The host will reveal the results.</p>
     </div>`;
-}
-
-function showWaiting(s, qIdx) {
+    return;
+  }
+  const qIdx = s.active_q;
   const q = QUESTIONS[qIdx];
-  document.getElementById('voter-content').innerHTML = `
-    <div class="card">
+  if (myVotedQ === qIdx) {
+    el.innerHTML = `<div class="card">
       <div class="q-image-wrap">${q.svg}</div>
       <div class="q-number">Question ${qIdx+1} of ${QUESTIONS.length}</div>
       <div class="q-text">${q.text}</div>
       <div class="voted-banner">✓ Vote recorded!</div>
-      <p style="text-align:center;font-size:0.84rem;color:var(--muted);margin-bottom:0.5rem">Waiting for the next question...</p>
+      <p style="text-align:center;font-size:0.84rem;color:var(--muted);margin-bottom:0.5rem">Waiting for next question...</p>
       <div class="waiting-dots"><span></span><span></span><span></span></div>
     </div>`;
+    return;
+  }
+  el.innerHTML = `<div class="card">
+    <div class="q-image-wrap">${q.svg}</div>
+    <div class="q-number">Question ${qIdx+1} of ${QUESTIONS.length}</div>
+    <div class="q-text">${q.text}</div>
+    <div class="vote-row">
+      <button class="vote-btn husband-btn" onclick="castVote('h',${qIdx})">♂ Husband</button>
+      <button class="vote-btn wife-btn"    onclick="castVote('w',${qIdx})">♀ Wife</button>
+    </div>
+  </div>`;
 }
 
-function castVote(choice, qIdx) {
-  const s = load();
-  // Guard: only vote if still on this question and poll not ended
-  if (s.activeQ !== qIdx || s.ended || myVotedQ === qIdx) return;
-  s.votes[qIdx][choice]++;
-  save(s);
+async function castVote(choice, qIdx) {
+  if (myVotedQ === qIdx) return;
   myVotedQ = qIdx;
-  showWaiting(s, qIdx);
+  renderVoter({ ...pollState, active_q: qIdx });
+  const fresh = await loadState();
+  const votes = [...fresh.votes];
+  votes[qIdx] = { h: (votes[qIdx].h||0) + (choice==='h'?1:0), w: (votes[qIdx].w||0) + (choice==='w'?1:0) };
+  await updateState({ votes });
 }
 
 /* ─── INIT ─── */
-if (window.location.search.includes('vote=1')) {
-  openVoter();
-}
+generateQR();
+if (window.location.search.includes('vote=1')) openVoter();
 </script>
 </body>
 </html>
